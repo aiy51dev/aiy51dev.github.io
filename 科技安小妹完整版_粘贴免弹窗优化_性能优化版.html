@@ -1,0 +1,2282 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>科技安小妹工具箱 · 智械资源中枢（带本地保存）</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(145deg, #0A0E2A 0%, #1A0B3A 50%, #0D1B3E 100%);
+            font-family: 'Segoe UI', 'Poppins', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Roboto', sans-serif;
+            padding: 40px 24px;
+            color: #E0E6F0;
+            position: relative;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        /* 网格背景 - 移除 will-change，简化伪元素 */
+        .grid-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .grid-bg::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(0, 255, 255, 0.07) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 255, 0.07) 1px, transparent 1px);
+            background-size: 50px 50px;
+            background-position: center center;
+        }
+        /* 简化 after 伪元素 - 移除昂贵的 perspective+rotateX 3D变换 */
+        .grid-bg::after {
+            content: "";
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            width: 250%;
+            height: 55%;
+            background: linear-gradient(to top, rgba(138, 43, 226, 0.12) 0%, transparent 100%);
+            transform: translateX(-50%);
+        }
+
+        /* 光晕球 - 减小模糊半径 80px→40px */
+        .glow-orb {
+            position: fixed;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 0;
+            filter: blur(40px);
+            opacity: 0.20;
+        }
+        .glow-orb-1 { width: 400px; height: 400px; top: -100px; right: -150px; background: radial-gradient(circle, #00FFFF 0%, transparent 70%); }
+        .glow-orb-2 { width: 350px; height: 350px; bottom: 5%; left: -120px; background: radial-gradient(circle, #FF00FF 0%, transparent 70%); }
+        .glow-orb-3 { width: 300px; height: 300px; top: 40%; left: 50%; background: radial-gradient(circle, #8A2BE2 0%, transparent 70%); }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 1480px;
+            margin: 0 auto;
+            background: rgba(15, 20, 50, 0.88);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            border-radius: 48px;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.06), inset 0 1px 0 rgba(255,255,255,0.05);
+            overflow: hidden;
+            padding: 0 0 36px 0;
+            border: 1px solid rgba(0, 255, 255, 0.25);
+        }
+
+        .hero-image-panel {
+            background: linear-gradient(135deg, #0b1120 0%, #121a35 50%, #0f1830 100%);
+            padding: 20px 32px 20px 32px;
+            border-bottom: 2px solid rgba(0, 255, 255, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-image-panel::before {
+            content: "";
+            position: absolute;
+            top: -30%;
+            right: -10%;
+            width: 280px;
+            height: 280px;
+            background: radial-gradient(circle, rgba(0, 255, 255, 0.12) 0%, rgba(138, 43, 226, 0.06) 50%, rgba(0,0,0) 70%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        .hero-image-panel::after {
+            content: "";
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent 0%, #00FFFF 20%, #FF00FF 50%, #00FFFF 80%, transparent 100%);
+            pointer-events: none;
+        }
+
+        .image-upload-area {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 28px;
+            justify-content: space-between;
+        }
+
+        .title-side {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex: 2;
+        }
+
+        .tech-title {
+            font-size: 2rem;
+            font-weight: 800;
+            background: linear-gradient(120deg, #00FFFF, #8A2BE2, #FF00FF);
+            background-size: 200% 200%;
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            animation: titleGlow 4s ease-in-out infinite;
+            letter-spacing: 1px;
+            border-right: 2px solid #00FFFF;
+            padding-right: 24px;
+            margin-right: 12px;
+            white-space: nowrap;
+            text-shadow: 0 0 30px rgba(0,255,255,0.3);
+            will-change: background-position;
+        }
+        @keyframes titleGlow {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        .tech-sub {
+            font-size: 0.8rem;
+            color: #00FFFF;
+            background: rgba(0, 255, 255, 0.08);
+            padding: 6px 14px;
+            border-radius: 60px;
+            letter-spacing: 1px;
+            border: 1px solid rgba(0, 255, 255, 0.25);
+            text-shadow: 0 0 8px rgba(0,255,255,0.4);
+        }
+
+        .image-preview {
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: rgba(15, 23, 42, 0.9);
+            border-radius: 28px;
+            padding: 4px;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.12), 0 4px 12px rgba(0,0,0,0.3);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+        }
+        .image-preview:hover {
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.2), 0 4px 20px rgba(138, 43, 226, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .image-preview img {
+            max-width: 180px;
+            max-height: 85px;
+            border-radius: 24px;
+            border: 1px solid rgba(0, 255, 255, 0.4);
+            background: #fff;
+            object-fit: contain;
+            transition: transform 0.2s;
+        }
+
+        .upload-btn {
+            background: linear-gradient(135deg, rgba(0, 255, 255, 0.15), rgba(138, 43, 226, 0.15));
+            color: #00FFFF;
+            border: 1px solid rgba(0, 255, 255, 0.4);
+            padding: 8px 22px;
+            border-radius: 40px;
+            font-weight: 500;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: 0.2s;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.1);
+        }
+        .upload-btn:hover {
+            background: rgba(0, 255, 255, 0.25);
+            transform: translateY(-2px);
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
+            border-color: #00FFFF;
+        }
+        .upload-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        .info-panel {
+            background: rgba(15, 20, 50, 0.75);
+            margin: 20px 28px;
+            padding: 20px 28px;
+            border-radius: 32px;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.05), inset 0 1px 0 rgba(255,255,255,0.03);
+            border: 1px solid rgba(0, 255, 255, 0.2);
+            border-left: 4px solid #00FFFF;
+        }
+        .info-panel p {
+            color: #B0C4DE;
+            margin-bottom: 6px;
+        }
+        .info-panel strong {
+            color: #FF69B4;
+        }
+
+        .wechat-row {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 12px;
+            background: rgba(15, 20, 55, 0.85);
+            padding: 10px 20px;
+            border-radius: 80px;
+            border: 1px solid rgba(0, 255, 255, 0.2);
+        }
+        .wechat-row span:first-child {
+            color: #B0C4DE;
+        }
+
+        .wechat-id {
+            font-weight: 800;
+            font-size: 1.2rem;
+            background: #0f172a;
+            color: #00FFFF;
+            padding: 5px 20px;
+            border-radius: 40px;
+            font-family: monospace;
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            text-shadow: 0 0 10px rgba(0,255,255,0.5);
+        }
+
+        .copy-btn {
+            background: linear-gradient(135deg, rgba(0, 255, 255, 0.15), rgba(138, 43, 226, 0.15));
+            border: 1px solid rgba(0, 255, 255, 0.4);
+            color: #00FFFF;
+            padding: 6px 20px;
+            border-radius: 40px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: 0.2s;
+        }
+        .copy-btn:hover {
+            background: rgba(0, 255, 255, 0.25);
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
+        }
+
+        .qrcode-area {
+            margin-top: 20px;
+            padding-top: 16px;
+            text-align: center;
+        }
+        .qrcode-title {
+            color: #00FFFF;
+            font-weight: 600;
+            margin-bottom: 12px;
+            text-shadow: 0 0 10px rgba(0,255,255,0.3);
+        }
+        .qrcode-preview img {
+            max-width: 120px;
+            border-radius: 20px;
+            background: white;
+            padding: 6px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            border: 2px solid rgba(0, 255, 255, 0.3);
+        }
+        .qrcode-preview img:hover {
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.25);
+        }
+        .qrcode-tip {
+            color: #FF69B4;
+            font-size: 0.85rem;
+            margin-top: 6px;
+            text-shadow: 0 0 8px rgba(255,105,180,0.4);
+        }
+
+        .resource-manager {
+            padding: 0 28px;
+        }
+
+        .section-title {
+            font-size: 1.6rem;
+            font-weight: 700;
+            margin: 24px 0 16px 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: linear-gradient(135deg, #00FFFF, #FF69B4);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            border-left: 4px solid #00FFFF;
+            padding-left: 20px;
+            flex-wrap: wrap;
+        }
+        .warning-tip {
+            font-size: 0.7rem;
+            background: rgba(255, 0, 0, 0.15);
+            color: #FF6B6B;
+            padding: 4px 12px;
+            border-radius: 40px;
+            font-weight: 500;
+            margin-left: 12px;
+            white-space: nowrap;
+            letter-spacing: 0.3px;
+            border: 1px solid rgba(255, 0, 0, 0.3);
+        }
+
+        /* 卡片列表 - 添加 contain 防止布局抖动级联 */
+        .resource-card-list {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            margin-bottom: 28px;
+            contain: layout style;
+        }
+
+        .resource-card {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            background: linear-gradient(90deg, rgba(0, 180, 255, 0.12) 0%, rgba(200, 160, 255, 0.10) 40%, rgba(255, 130, 180, 0.08) 100%);
+            border-radius: 30px;
+            padding: 10px 24px 10px 10px;
+            position: relative;
+            border: 2px solid rgba(0, 255, 255, 0.5);
+            box-shadow: 
+                0 0 12px rgba(0, 255, 255, 0.12),
+                0 0 25px rgba(138, 43, 226, 0.06),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05);
+            transition: all 0.3s ease;
+            cursor: default;
+            overflow: visible;
+            content-visibility: auto;
+            contain-intrinsic-size: auto 64px;
+        }
+        .resource-card::before {
+            content: "";
+            position: absolute;
+            inset: -3px;
+            border-radius: 32px;
+            padding: 3px;
+            background: linear-gradient(135deg, #00FFFF, #FF00FF, #8A2BE2, #00FFFF);
+            background-size: 300% 300%;
+            animation: borderGlow 4s ease-in-out infinite;
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            pointer-events: none;
+            will-change: background-position;
+        }
+        @keyframes borderGlow {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        .resource-card:hover {
+            transform: translateX(4px);
+            box-shadow: 
+                0 0 20px rgba(0, 255, 255, 0.2),
+                0 0 40px rgba(138, 43, 226, 0.12),
+                inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        }
+
+        .resource-card::after {
+            content: "";
+            position: absolute;
+            top: -1px;
+            left: 20px;
+            right: 20px;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #00FFFF, #FF00FF, #00FFFF, transparent);
+            border-radius: 2px;
+            filter: blur(3px);
+            pointer-events: none;
+        }
+
+        .card-serial {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 70px;
+            height: 44px;
+            background: linear-gradient(135deg, #00BFFF, #8A2BE2);
+            border-radius: 24px;
+            color: #000;
+            font-weight: 800;
+            font-size: 1.1rem;
+            letter-spacing: 1px;
+            padding: 0 12px;
+            border: 2px solid rgba(0, 255, 255, 0.6);
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+            flex-shrink: 0;
+        }
+
+        .card-content {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .card-name {
+            font-weight: 700;
+            font-size: 1rem;
+            color: #E0E6F0;
+            text-shadow: 0 0 6px rgba(0,255,255,0.2);
+        }
+        .card-disk {
+            font-size: 0.78rem;
+            color: #00FFFF;
+            background: rgba(0, 255, 255, 0.10);
+            padding: 3px 12px;
+            border-radius: 40px;
+            border: 1px solid rgba(0, 255, 255, 0.3);
+        }
+        .card-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .card-copy-btn {
+            background: linear-gradient(135deg, rgba(0, 255, 255, 0.2), rgba(138, 43, 226, 0.2));
+            color: #00FFFF;
+            border: 1px solid rgba(0, 255, 255, 0.5);
+            padding: 6px 16px;
+            border-radius: 40px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.75rem;
+            transition: 0.2s;
+        }
+        .card-copy-btn:hover {
+            background: rgba(0, 255, 255, 0.35);
+            box-shadow: 0 0 12px rgba(0, 255, 255, 0.25);
+        }
+        .card-edit-btn {
+            background: transparent;
+            color: #FF69B4;
+            border: 1px solid rgba(255, 105, 180, 0.4);
+            padding: 6px 12px;
+            border-radius: 40px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.7rem;
+            transition: 0.2s;
+        }
+        .card-edit-btn:hover {
+            background: rgba(255, 105, 180, 0.2);
+            box-shadow: 0 0 10px rgba(255, 105, 180, 0.2);
+        }
+        .card-delete-btn {
+            background: transparent;
+            color: #FF6B6B;
+            border: 1px solid rgba(255, 107, 107, 0.4);
+            padding: 6px 12px;
+            border-radius: 40px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.7rem;
+            transition: 0.2s;
+        }
+        .card-delete-btn:hover {
+            background: rgba(255, 107, 107, 0.2);
+            box-shadow: 0 0 10px rgba(255, 107, 107, 0.2);
+        }
+
+        /* 模态框 */
+        .add-resource-modal {
+            display: none;
+            position: fixed;
+            z-index: 1200;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(5, 5, 20, 0.92);
+            justify-content: center;
+            align-items: center;
+        }
+        .add-resource-modal.active {
+            display: flex;
+        }
+
+        .add-resource-card {
+            background: rgba(15, 23, 42, 0.98);
+            border-radius: 48px;
+            padding: 36px 40px;
+            max-width: 520px;
+            width: 92%;
+            border: 1px solid rgba(0, 255, 255, 0.5);
+            box-shadow: 0 0 40px rgba(0, 255, 255, 0.12);
+            position: relative;
+            transform: translateZ(0);
+        }
+
+        .add-resource-card h3 {
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 24px;
+            background: linear-gradient(135deg, #00FFFF, #FF69B4);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+        }
+
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.85rem;
+            color: #00FFFF;
+            margin-bottom: 8px;
+            font-weight: 600;
+            text-shadow: 0 0 8px rgba(0,255,255,0.3);
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px 18px;
+            border: 1px solid rgba(0, 255, 255, 0.4);
+            border-radius: 20px;
+            font-size: 0.9rem;
+            background: rgba(15, 20, 40, 0.85);
+            color: #E0E6F0;
+            transition: border-color 0.15s, box-shadow 0.15s;
+            outline: none;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            border-color: #00FFFF;
+            box-shadow: 0 0 12px rgba(0, 255, 255, 0.2);
+        }
+
+        .form-group select option {
+            background: #1a1a2e;
+            color: #E0E6F0;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 24px;
+        }
+
+        .form-actions button {
+            padding: 10px 28px;
+            border-radius: 40px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: 0.2s;
+            border: 1px solid;
+        }
+
+        .form-confirm-btn {
+            background: linear-gradient(135deg, rgba(0, 255, 255, 0.25), rgba(138, 43, 226, 0.25));
+            color: #00FFFF;
+            border-color: rgba(0, 255, 255, 0.5);
+        }
+        .form-confirm-btn:hover {
+            background: rgba(0, 255, 255, 0.4);
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.25);
+        }
+
+        .form-cancel-btn {
+            background: rgba(255, 107, 107, 0.15);
+            color: #FF6B6B;
+            border-color: rgba(255, 107, 107, 0.4);
+        }
+        .form-cancel-btn:hover {
+            background: rgba(255, 107, 107, 0.3);
+        }
+
+        .close-modal-x {
+            position: absolute;
+            top: 20px;
+            right: 28px;
+            font-size: 28px;
+            color: #00FFFF;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .close-modal-x:hover {
+            color: #FF00FF;
+            text-shadow: 0 0 15px rgba(255,0,255,0.5);
+        }
+
+        .resource-table-wrapper {
+            display: none;
+        }
+
+        .resource-table-wrapper-old {
+            overflow-x: auto;
+            border-radius: 28px;
+            border: 1px solid rgba(0, 255, 255, 0.2);
+            background: rgba(15, 20, 50, 0.7);
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.05);
+            margin-bottom: 28px;
+        }
+
+        .resource-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+            min-width: 980px;
+            color: #E0E6F0;
+        }
+
+        .resource-table th {
+            background: rgba(15, 20, 55, 0.9);
+            padding: 16px 10px;
+            text-align: left;
+            font-weight: 700;
+            color: #00FFFF;
+            border-bottom: 2px solid rgba(0, 255, 255, 0.3);
+            font-size: 0.85rem;
+        }
+
+        .resource-table td {
+            padding: 12px 8px;
+            border-bottom: 1px solid rgba(0, 255, 255, 0.1);
+            vertical-align: middle;
+        }
+
+        .resource-table input, .resource-table select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            border-radius: 20px;
+            font-size: 0.8rem;
+            background: rgba(15, 20, 40, 0.8);
+            color: #E0E6F0;
+            transition: 0.2s;
+        }
+
+        .resource-table input:focus, .resource-table select:focus {
+            border-color: #00FFFF;
+            outline: none;
+            box-shadow: 0 0 8px rgba(0,255,255,0.15);
+        }
+
+        .copy-link-btn {
+            background: rgba(0, 255, 255, 0.15);
+            border: 1px solid rgba(0, 255, 255, 0.4);
+            padding: 6px 14px;
+            border-radius: 40px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.7rem;
+            transition: 0.2s;
+            color: #00FFFF;
+        }
+        .copy-link-btn:hover {
+            background: rgba(0, 255, 255, 0.3);
+        }
+
+        .encrypt-hint {
+            background: rgba(255, 105, 180, 0.1);
+            font-size: 0.75rem;
+            padding: 6px 12px;
+            border-radius: 60px;
+            display: inline-block;
+            color: #FF69B4;
+            font-weight: 500;
+            border: 1px solid rgba(255, 105, 180, 0.3);
+        }
+
+        .delete-row-btn {
+            background: rgba(255, 107, 107, 0.15);
+            border: 1px solid rgba(255, 107, 107, 0.4);
+            padding: 6px 12px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: 500;
+            color: #FF6B6B;
+            transition: 0.2s;
+        }
+        .delete-row-btn:hover {
+            background: rgba(255, 107, 107, 0.3);
+        }
+
+        .add-resource-btn {
+            background: linear-gradient(95deg, rgba(0, 255, 255, 0.2), rgba(138, 43, 226, 0.2));
+            color: #00FFFF;
+            border: 1px solid rgba(0, 255, 255, 0.5);
+            padding: 12px 28px;
+            border-radius: 60px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: 0.2s;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.1);
+        }
+        .add-resource-btn:hover {
+            background: rgba(0, 255, 255, 0.35);
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+        .add-resource-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        .generate-btn, .save-btn {
+            background: linear-gradient(135deg, #0b2b5c, #1e4880);
+            border: 1px solid rgba(0, 255, 255, 0.4);
+            padding: 14px 38px;
+            border-radius: 60px;
+            font-weight: 800;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: 0.2s;
+            color: white;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.1);
+        }
+        .save-btn {
+            background: linear-gradient(135deg, rgba(0, 200, 100, 0.3), rgba(0, 150, 80, 0.3));
+            border-color: rgba(0, 255, 130, 0.5);
+            margin-right: 16px;
+        }
+        .save-btn:hover, .generate-btn:hover {
+            transform: translateY(-2px);
+            filter: brightness(1.1);
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
+        }
+
+        .toast-msg {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15, 20, 50, 0.95);
+            color: #00FFFF;
+            padding: 10px 26px;
+            border-radius: 60px;
+            font-size: 0.85rem;
+            z-index: 1200;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+            border: 1px solid rgba(0, 255, 255, 0.4);
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.1);
+        }
+
+        .badge-note {
+            background: rgba(0, 255, 255, 0.1);
+            padding: 4px 12px;
+            border-radius: 30px;
+            font-size: 0.7rem;
+            border: 1px solid rgba(0, 255, 255, 0.25);
+            color: #00FFFF;
+        }
+
+        .edit-link-icon {
+            background: rgba(138, 43, 226, 0.25);
+            color: #DDA0DD;
+            border: 1px solid rgba(138, 43, 226, 0.4);
+            border-radius: 30px;
+            padding: 4px 10px;
+            margin-left: 8px;
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .edit-link-icon:hover {
+            background: rgba(138, 43, 226, 0.4);
+        }
+
+        .unlock-bar {
+            background: rgba(255, 255, 0, 0.05);
+            padding: 12px 20px;
+            border-radius: 60px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+            border: 1px solid rgba(255, 255, 0, 0.2);
+        }
+        .unlock-status { font-size: 0.85rem; font-weight: 500; color: #FFD700; }
+        .unlock-status.unlocked { color: #00FF88; }
+        .unlock-input { display: flex; gap: 10px; align-items: center; }
+        .unlock-input input { 
+            padding: 6px 12px; 
+            border-radius: 40px; 
+            border: 1px solid rgba(0, 255, 255, 0.4); 
+            background: rgba(15,20,40,0.8); 
+            color: #E0E6F0; 
+            outline: none;
+        }
+        .unlock-input input:focus {
+            border-color: #00FFFF;
+            box-shadow: 0 0 8px rgba(0,255,255,0.15);
+        }
+        .unlock-btn { 
+            background: linear-gradient(135deg, rgba(0, 255, 255, 0.2), rgba(138, 43, 226, 0.2)); 
+            color: #00FFFF; 
+            border: 1px solid rgba(0, 255, 255, 0.5); 
+            padding: 6px 16px; 
+            border-radius: 40px; 
+            cursor: pointer; 
+            transition: 0.2s;
+        }
+        .unlock-btn:hover {
+            background: rgba(0, 255, 255, 0.35);
+            box-shadow: 0 0 12px rgba(0,255,255,0.2);
+        }
+
+        .modal-unlock {
+            display: none;
+            position: fixed;
+            z-index: 1100;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(5, 5, 20, 0.9);
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+        .modal-unlock.active {
+            display: flex;
+        }
+
+        .modal-card {
+            background: rgba(15, 23, 42, 0.95);
+            border-radius: 48px;
+            padding: 28px 32px;
+            text-align: center;
+            max-width: 380px;
+            width: 90%;
+            border: 1px solid rgba(0, 255, 255, 0.5);
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.1);
+            transform: translateZ(0);
+        }
+
+        .modal-card img {
+            max-width: 180px;
+            margin-bottom: 16px;
+            border-radius: 24px;
+            background: white;
+            padding: 8px;
+        }
+
+        .modal-card input {
+            width: 90%;
+            padding: 12px;
+            border-radius: 60px;
+            border: 1px solid rgba(0, 255, 255, 0.5);
+            margin: 16px 0;
+            font-size: 1rem;
+            text-align: center;
+            background: rgba(15,20,40,0.8);
+            color: #E0E6F0;
+            outline: none;
+        }
+        .modal-card input:focus {
+            border-color: #00FFFF;
+            box-shadow: 0 0 10px rgba(0,255,255,0.15);
+        }
+
+        .modal-card button {
+            background: linear-gradient(135deg, rgba(0, 255, 255, 0.2), rgba(138, 43, 226, 0.2));
+            border: 1px solid rgba(0, 255, 255, 0.5);
+            padding: 10px 24px;
+            border-radius: 40px;
+            color: #00FFFF;
+            font-weight: bold;
+            margin: 5px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .modal-card button:hover {
+            background: rgba(0, 255, 255, 0.35);
+            box-shadow: 0 0 12px rgba(0, 255, 255, 0.2);
+        }
+
+        /* 非加密复制反馈弹窗 */
+        .feedback-overlay {
+            display: none;
+            position: fixed;
+            z-index: 1150;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(5, 5, 20, 0.92);
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+        .feedback-overlay.active {
+            display: flex;
+        }
+
+        .feedback-card {
+            background: rgba(15, 23, 42, 0.97);
+            border-radius: 48px;
+            padding: 32px 36px;
+            text-align: center;
+            max-width: 400px;
+            width: 92%;
+            border: 1px solid rgba(0, 255, 255, 0.5);
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.15);
+            animation: feedbackIn 0.3s ease-out;
+            transform: translateZ(0);
+        }
+        @keyframes feedbackIn {
+            from { transform: scale(0.9); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .feedback-card .copied-badge {
+            display: inline-block;
+            background: rgba(0, 255, 130, 0.15);
+            color: #00FF88;
+            padding: 6px 20px;
+            border-radius: 40px;
+            font-weight: 700;
+            font-size: 0.85rem;
+            margin-bottom: 16px;
+            border: 1px solid rgba(0, 255, 130, 0.4);
+            text-shadow: 0 0 10px rgba(0,255,130,0.4);
+        }
+
+        .feedback-card img {
+            max-width: 160px;
+            margin: 12px auto;
+            border-radius: 24px;
+            background: white;
+            padding: 8px;
+            border: 2px solid rgba(0, 255, 255, 0.3);
+            display: block;
+        }
+
+        .feedback-card .donate-text {
+            color: #FF69B4;
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin: 14px 0 10px 0;
+            text-shadow: 0 0 10px rgba(255,105,180,0.4);
+            line-height: 1.5;
+        }
+
+        .feedback-card .copy-wechat-btn {
+            background: linear-gradient(135deg, #00b894, #00cec9);
+            color: #fff;
+            border: none;
+            padding: 10px 28px;
+            border-radius: 40px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: 0.2s;
+            margin: 8px 5px 5px 5px;
+            box-shadow: 0 0 15px rgba(0,255,255,0.1);
+        }
+        .feedback-card .copy-wechat-btn:hover {
+            box-shadow: 0 0 20px rgba(0,255,255,0.25);
+            transform: translateY(-1px);
+        }
+
+        .feedback-card .close-feedback-btn {
+            background: transparent;
+            color: #8899AA;
+            border: 1px solid rgba(255,255,255,0.2);
+            padding: 8px 24px;
+            border-radius: 40px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            margin-top: 10px;
+            transition: 0.2s;
+        }
+        .feedback-card .close-feedback-btn:hover {
+            color: #fff;
+            border-color: rgba(255,255,255,0.4);
+        }
+
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .resource-card {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+                padding: 14px;
+            }
+            .card-content {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+                width: 100%;
+            }
+            .card-actions {
+                width: 100%;
+                justify-content: flex-end;
+            }
+            .tech-title {
+                font-size: 1.3rem;
+                white-space: normal;
+                border-right: none;
+                padding-right: 0;
+                margin-right: 0;
+            }
+            .add-resource-card, .feedback-card {
+                padding: 28px 24px;
+            }
+        }
+
+        /* 粘贴按钮样式 */
+        .input-paste-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        .input-paste-wrapper input {
+            flex: 1;
+            padding-right: 48px !important;
+        }
+        .paste-btn {
+            position: absolute;
+            right: 4px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, rgba(0, 255, 255, 0.2), rgba(138, 43, 226, 0.2));
+            border: 1px solid rgba(0, 255, 255, 0.4);
+            color: #00FFFF;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: 0.2s;
+            will-change: transform;
+            z-index: 2;
+        }
+        .paste-btn:hover {
+            background: rgba(0, 255, 255, 0.35);
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+            transform: translateY(-50%) scale(1.08);
+        }
+        .paste-btn:active {
+            transform: translateY(-50%) scale(0.95);
+        }
+    </style>
+</head>
+<body>
+<div class="grid-bg"></div>
+<div class="glow-orb glow-orb-1"></div>
+<div class="glow-orb glow-orb-2"></div>
+<div class="glow-orb glow-orb-3"></div>
+
+<div class="container">
+    <div class="hero-image-panel">
+        <div class="image-upload-area">
+            <div class="title-side">
+                <div class="tech-title">科技安小妹工具箱</div>
+                <div class="tech-sub">AI 数字资源中枢 · 极简智控</div>
+            </div>
+            <div style="display: flex; gap: 20px; align-items: center;">
+                <div class="image-preview"><img id="bannerImg" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='70' viewBox='0 0 200 70'%3E%3Crect width='200' height='70' fill='%231e293b'/%3E%3Ctext x='20' y='45' fill='%2360a5fa' font-size='14'%3E%F0%9F%94%AE %E5%AE%89%E5%B0%8F%E5%A6%B9%E8%B5%84%E6%BA%90%E5%BA%93%3C/text%3E%3C/svg%3E" alt="banner"></div>
+                <button class="upload-btn" id="uploadImageBtn">更换头图</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="info-panel">
+        <p>本资源为互联网优质内容整理，<strong>仅用于学习交流，禁止商用！</strong></p>
+        <p>所有资源均来源于网络，侵删。请在下载后24小时内删除，如需更好体验，请支持正版！</p>
+        <p>我们不生产资源，只做资源的搬运工，让你省时、省力、省心！</p>
+        <div class="wechat-row"><span>方式一：添加微信免费领取解锁码</span><span class="wechat-id">ETM11107</span><button class="copy-btn" id="copyWechatBtn">复制微信号</button></div>
+        <div class="qrcode-area">
+            <div class="qrcode-title">打赏获取解锁码 · 支持创作</div>
+            <div class="qrcode-preview">
+                <img id="qrcodeImg" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23e2e8f0'/%3E%3Ctext x='20' y='55' fill='%233b82f6' font-size='10'%3E%E6%89%93%E8%B5%8F%E7%A0%81%3C/text%3E%3C/svg%3E" alt="qr">
+                <div class="qrcode-tip">随心意打赏小编获取解锁码</div>
+                <button class="upload-btn upload-qr-btn" id="uploadQrBtn">更换二维码</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="resource-manager">
+        <div class="section-title">
+            资源条目管理 
+            <span class="badge-note">自由编辑 | 生成最终文件无需解锁</span>
+            <span class="warning-tip">⚠️ 资源24小时后加密尽快保存</span>
+        </div>
+        
+        <div class="resource-card-list" id="resourceCardList"></div>
+        
+        <div class="resource-table-wrapper-old" id="resourceTableWrapper" style="display:none;">
+            <table class="resource-table" id="resourceTable">
+                <thead>
+                    <tr><th>#序号</th><th>资源名称</th><th>网盘</th><th style="min-width: 260px;">资源链接/加密状态</th><th>🔒加密</th><th>操作</th></tr>
+                </thead>
+                <tbody id="resourceTbody"></tbody>
+            </table>
+        </div>
+        <button class="add-resource-btn" id="addResourceBtn">+ 添加新资源</button>
+    </div>
+    <div class="footer-actions" style="display: flex; justify-content: flex-end; margin: 0 28px 20px 28px; flex-wrap: wrap; gap: 12px;">
+        <button class="save-btn" id="saveContentBtn">保存编辑内容</button>
+        <button class="generate-btn" id="generateHtmlBtn">生成最终 HTML 文件（无需解锁，分享后受保护）</button>
+    </div>
+</div>
+<div id="toastMsg" class="toast-msg"></div>
+
+<!-- 添加资源模态框 -->
+<div class="add-resource-modal" id="addResourceModal">
+    <div class="add-resource-card">
+        <span class="close-modal-x" id="closeAddModalX">✕</span>
+        <h3>✨ 添加新资源</h3>
+        <div class="form-group">
+            <label for="inputResourceName">资源名称</label>
+            <div class="input-paste-wrapper">
+                <input type="text" id="inputResourceName" placeholder="请输入资源名称" autocomplete="off">
+                <button class="paste-btn" data-target="inputResourceName" title="粘贴">📋</button>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="inputResourceLink">资源链接</label>
+            <div class="input-paste-wrapper">
+                <input type="text" id="inputResourceLink" placeholder="请输入资源链接地址" autocomplete="off">
+                <button class="paste-btn" data-target="inputResourceLink" title="粘贴">📋</button>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="inputResourceType">资源类目</label>
+            <select id="inputResourceType">
+                <option value="百度">百度网盘</option>
+                <option value="夸克">夸克网盘</option>
+                <option value="迅雷">迅雷网盘</option>
+                <option value="阿里">阿里云盘</option>
+                <option value="网页">网页链接</option>
+                <option value="其他">其他</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>
+                <input type="checkbox" id="inputResourceEncrypted" style="width:auto; margin-right:8px; vertical-align:middle;">
+                链接已加密（勾选后需要解锁码才能复制）
+            </label>
+        </div>
+        <div class="form-actions">
+            <button class="form-cancel-btn" id="cancelAddResource">取消</button>
+            <button class="form-confirm-btn" id="confirmAddResource">确认添加</button>
+        </div>
+    </div>
+</div>
+
+<!-- 编辑链接模态框（非加密资源） -->
+<div class="add-resource-modal" id="editLinkModal">
+    <div class="add-resource-card">
+        <span class="close-modal-x" id="closeEditModalX">✕</span>
+        <h3>✏️ 编辑资源链接</h3>
+        <div class="form-group">
+            <label for="editResourceName">资源名称</label>
+            <div class="input-paste-wrapper">
+                <input type="text" id="editResourceName" placeholder="资源名称" autocomplete="off">
+                <button class="paste-btn" data-target="editResourceName" title="粘贴">📋</button>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="editResourceLink">资源链接</label>
+            <div class="input-paste-wrapper">
+                <input type="text" id="editResourceLink" placeholder="资源链接地址" autocomplete="off">
+                <button class="paste-btn" data-target="editResourceLink" title="粘贴">📋</button>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="editResourceType">资源类目</label>
+            <select id="editResourceType">
+                <option value="百度">百度网盘</option>
+                <option value="夸克">夸克网盘</option>
+                <option value="迅雷">迅雷网盘</option>
+                <option value="阿里">阿里云盘</option>
+                <option value="网页">网页链接</option>
+                <option value="其他">其他</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>
+                <input type="checkbox" id="editResourceEncrypted" style="width:auto; margin-right:8px; vertical-align:middle;">
+                链接已加密（勾选后需要解锁码才能复制）
+            </label>
+        </div>
+        <div class="form-actions">
+            <button class="form-cancel-btn" id="cancelEditResource">取消</button>
+            <button class="form-confirm-btn" id="confirmEditResource">保存修改</button>
+        </div>
+    </div>
+</div>
+
+<!-- 加密复制专用模态框 -->
+<div id="encryptCopyModal" class="modal-unlock">
+    <div class="modal-card">
+        <img id="modalDynamicQr" src="" alt="打赏二维码">
+        <p style="color:#B0C4DE; margin:8px 0;">加密资源 · 输入解锁口令复制链接</p>
+        <input type="password" id="encryptPwdInput" placeholder="请输入解锁码 (打赏获取)" autocomplete="off">
+        <div><button id="confirmCopyBtn">确认复制</button><button id="closeModalBtn">取消</button></div>
+        <p style="font-size:12px; color:#8899AA; margin-top:12px;">随心意打赏小编获取解锁码</p>
+    </div>
+</div>
+
+<!-- 非加密链接复制反馈弹窗 -->
+<div id="copyFeedbackOverlay" class="feedback-overlay">
+    <div class="feedback-card">
+        <div class="copied-badge">链接已复制</div>
+        <img id="feedbackQrImg" src="" alt="打赏二维码">
+        <div class="donate-text">随你心意打赏支持小编获取永久解锁码<br>微信 ETM11107</div>
+        <button class="copy-wechat-btn" id="feedbackCopyWechatBtn">一键复制微信</button>
+        <br>
+        <button class="close-feedback-btn" id="closeFeedbackBtn">关闭</button>
+    </div>
+</div>
+
+<script>
+    // ---------- 加密解锁码（防止明文搜索）----------
+    const ENC_SECRET = "628342";
+    function decryptSecret(enc) {
+        let dec = "";
+        for (let ch of enc) {
+            let digit = parseInt(ch, 10);
+            if (!isNaN(digit)) {
+                let newDigit = (digit - 1 + 10) % 10;
+                dec += newDigit.toString();
+            } else {
+                dec += ch;
+            }
+        }
+        return dec;
+    }
+    const SECRET_CODE = decryptSecret(ENC_SECRET);
+
+    // ---------- 核心数据 ----------
+    let resources = [
+        { serial: "003", name: "异地组网企业版", disk: "迅雷", link: "https://pan.xunlei.com/s/encrypted_secret_003", encrypted: true },
+        { serial: "002", name: "硬盘检测工具", disk: "百度", link: "https://pan.baidu.com/s/example2", encrypted: false },
+        { serial: "001", name: "打印机报错修复工具", disk: "夸克", link: "https://pan.quark.cn/s/example1", encrypted: false }
+    ];
+    let currentImageBase64 = document.getElementById('bannerImg').src;
+    let currentQrBase64 = document.getElementById('qrcodeImg').src;
+    let pendingCopyLink = "";
+    let currentEditIndex = -1;
+    let toastTimer = null;
+
+    function showToast(msg, duration) {
+        duration = duration || 2200;
+        const toast = document.getElementById('toastMsg');
+        if (toastTimer) clearTimeout(toastTimer);
+        toast.innerText = msg;
+        toast.style.opacity = '1';
+        toastTimer = setTimeout(function() { toast.style.opacity = '0'; toastTimer = null; }, duration);
+    }
+
+    async function copyToClipboard(text) {
+        try {
+            await navigator.clipboard.writeText(text);
+        } catch (err) {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.left = '-9999px';
+            ta.style.top = '-9999px';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+        }
+    }
+
+    // 粘贴按钮：零权限方案，完全不依赖 Clipboard API，永不触发权限弹窗
+    function pasteFromClipboard(targetId) {
+        const targetInput = document.getElementById(targetId);
+        if (!targetInput) return;
+
+        const existGhost = document.getElementById('__pasteGhost');
+        if (existGhost) existGhost.remove();
+
+        const ghost = document.createElement('textarea');
+        ghost.id = '__pasteGhost';
+        ghost.style.cssText = 'position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none;z-index:-1;';
+        document.body.appendChild(ghost);
+        ghost.focus();
+
+        const origPlaceholder = targetInput.placeholder;
+        targetInput.placeholder = '已激活，请直接 Ctrl+V 粘贴';
+        const origBorderColor = targetInput.style.borderColor;
+        const origBoxShadow = targetInput.style.boxShadow;
+        targetInput.style.borderColor = '#00FF88';
+        targetInput.style.boxShadow = '0 0 12px rgba(0,255,136,0.35)';
+
+        function cleanup() {
+            targetInput.placeholder = origPlaceholder;
+            targetInput.style.borderColor = origBorderColor;
+            targetInput.style.boxShadow = origBoxShadow;
+            ghost.removeEventListener('paste', onPaste);
+            ghost.removeEventListener('blur', onGhostBlur);
+            ghost.removeEventListener('keydown', onGhostKey);
+            if (ghost.parentNode) ghost.remove();
+        }
+
+        function onPaste(e) {
+            e.preventDefault();
+            let text = '';
+            const cd = e.clipboardData || window.clipboardData;
+            if (cd) text = cd.getData('text');
+            if (!text || text.trim() === '') {
+                cleanup();
+                showToast('剪贴板为空');
+                return;
+            }
+            targetInput.value = text;
+            targetInput.focus();
+            cleanup();
+            showToast('已粘贴');
+        }
+
+        function onGhostBlur() {
+            setTimeout(function() {
+                if (document.activeElement !== ghost) {
+                    cleanup();
+                }
+            }, 150);
+        }
+
+        function onGhostKey(e) {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                cleanup();
+            }
+        }
+
+        ghost.addEventListener('paste', onPaste);
+        ghost.addEventListener('blur', onGhostBlur);
+        ghost.addEventListener('keydown', onGhostKey);
+        showToast('请在输入框中按 Ctrl+V 粘贴');
+    }
+
+    function initPasteButtons() {
+        const pasteBtns = document.querySelectorAll('.paste-btn');
+        pasteBtns.forEach(function(btn) {
+            btn.removeEventListener('click', pasteBtnHandler);
+            btn.addEventListener('click', pasteBtnHandler);
+        });
+    }
+    function pasteBtnHandler(e) {
+        const targetId = e.currentTarget.getAttribute('data-target');
+        if (targetId) {
+            pasteFromClipboard(targetId);
+        }
+    }
+
+    function showCopyFeedback() {
+        const qrImg = document.getElementById('qrcodeImg');
+        document.getElementById('feedbackQrImg').src = qrImg ? qrImg.src : currentQrBase64;
+        document.getElementById('copyFeedbackOverlay').classList.add('active');
+    }
+
+    function closeCopyFeedback() {
+        document.getElementById('copyFeedbackOverlay').classList.remove('active');
+    }
+
+    function handleCopyLink(link, encrypted) {
+        if (!encrypted) {
+            copyToClipboard(link).then(function() {
+                showCopyFeedback();
+            });
+        } else {
+            pendingCopyLink = link;
+            const qrImg = document.getElementById('qrcodeImg');
+            document.getElementById('modalDynamicQr').src = qrImg ? qrImg.src : currentQrBase64;
+            document.getElementById('encryptPwdInput').value = '';
+            document.getElementById('encryptCopyModal').classList.add('active');
+        }
+    }
+
+    function confirmEncryptedCopy() {
+        const pwd = document.getElementById('encryptPwdInput').value.trim();
+        if (pwd === SECRET_CODE) {
+            if (pendingCopyLink) {
+                copyToClipboard(pendingCopyLink);
+                showToast("加密链接已复制，请及时使用");
+                document.getElementById('encryptCopyModal').classList.remove('active');
+                pendingCopyLink = "";
+            } else {
+                document.getElementById('encryptCopyModal').classList.remove('active');
+            }
+        } else {
+            showToast("口令错误！请打赏后获取正确解锁码", 2000);
+        }
+    }
+
+    function closeEncryptModal() {
+        document.getElementById('encryptCopyModal').classList.remove('active');
+        pendingCopyLink = "";
+    }
+
+    function deleteResource(index) {
+        resources.splice(index, 1);
+        reindexSerials();
+        renderCards();
+        showToast("已移除资源");
+    }
+
+    function reindexSerials() {
+        const total = resources.length;
+        for (let i = 0; i < total; i++) {
+            resources[i].serial = (total - i).toString().padStart(3, '0');
+        }
+    }
+
+    function editResource(index) {
+        currentEditIndex = index;
+        const item = resources[index];
+        document.getElementById('editResourceName').value = item.name;
+        document.getElementById('editResourceLink').value = item.link;
+        document.getElementById('editResourceType').value = item.disk;
+        document.getElementById('editResourceEncrypted').checked = item.encrypted;
+        document.getElementById('editLinkModal').classList.add('active');
+    }
+
+    function confirmEditResource() {
+        if (currentEditIndex < 0) return;
+        const name = document.getElementById('editResourceName').value.trim();
+        const link = document.getElementById('editResourceLink').value.trim();
+        const disk = document.getElementById('editResourceType').value;
+        const encrypted = document.getElementById('editResourceEncrypted').checked;
+
+        if (!name) {
+            showToast("资源名称不能为空");
+            return;
+        }
+        if (!link) {
+            showToast("资源链接不能为空");
+            return;
+        }
+
+        resources[currentEditIndex].name = name;
+        resources[currentEditIndex].link = link;
+        resources[currentEditIndex].disk = disk;
+        resources[currentEditIndex].encrypted = encrypted;
+
+        currentEditIndex = -1;
+        document.getElementById('editLinkModal').classList.remove('active');
+        renderCards();
+        showToast("资源已更新");
+    }
+
+    // ===== 霓虹卡片渲染（DocumentFragment + 事件委托优化） =====
+    function renderCards() {
+        const cardList = document.getElementById('resourceCardList');
+        if (!cardList) return;
+        cardList.innerHTML = '';
+
+        if (resources.length === 0) {
+            cardList.innerHTML = '<div style="text-align:center; padding:40px; color:#8899AA;">暂无资源，点击上方按钮添加</div>';
+            return;
+        }
+
+        const fragment = document.createDocumentFragment();
+
+        for (let idx = 0; idx < resources.length; idx++) {
+            const item = resources[idx];
+            const card = document.createElement('div');
+            card.className = 'resource-card';
+            card.setAttribute('data-index', idx);
+
+            // 序号
+            const serialDiv = document.createElement('div');
+            serialDiv.className = 'card-serial';
+            serialDiv.textContent = item.serial;
+
+            // 内容区
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'card-content';
+
+            const infoWrap = document.createElement('div');
+            infoWrap.style.cssText = 'display:flex;align-items:center;gap:12px;flex-wrap:wrap';
+
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'card-name';
+            nameSpan.textContent = item.name;
+
+            const diskSpan = document.createElement('span');
+            diskSpan.className = 'card-disk';
+            diskSpan.textContent = item.disk;
+
+            infoWrap.appendChild(nameSpan);
+            infoWrap.appendChild(diskSpan);
+
+            if (item.encrypted) {
+                const encBadge = document.createElement('span');
+                encBadge.style.cssText = 'font-size:0.7rem;color:#FF69B4;background:rgba(255,105,180,0.1);padding:3px 10px;border-radius:40px;border:1px solid rgba(255,105,180,0.3)';
+                encBadge.textContent = '链接已加密';
+                infoWrap.appendChild(encBadge);
+            }
+
+            contentDiv.appendChild(infoWrap);
+
+            // 操作按钮
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'card-actions';
+
+            const editBtn = document.createElement('button');
+            editBtn.className = 'card-edit-btn';
+            editBtn.setAttribute('data-action', 'edit');
+            editBtn.textContent = '修改';
+
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'card-copy-btn';
+            copyBtn.setAttribute('data-action', 'copy');
+            copyBtn.textContent = '复制链接';
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'card-delete-btn';
+            deleteBtn.setAttribute('data-action', 'delete');
+            deleteBtn.textContent = '删除';
+
+            actionsDiv.appendChild(editBtn);
+            actionsDiv.appendChild(copyBtn);
+            actionsDiv.appendChild(deleteBtn);
+
+            card.appendChild(serialDiv);
+            card.appendChild(contentDiv);
+            card.appendChild(actionsDiv);
+
+            fragment.appendChild(card);
+        }
+
+        cardList.appendChild(fragment);
+    }
+
+    // ===== 事件委托：统一处理卡片上的所有按钮点击 =====
+    function setupCardListDelegation() {
+        const cardList = document.getElementById('resourceCardList');
+        cardList.addEventListener('click', function(e) {
+            const card = e.target.closest('.resource-card');
+            if (!card) return;
+            const idx = parseInt(card.getAttribute('data-index'));
+            if (isNaN(idx) || idx < 0 || idx >= resources.length) return;
+
+            const actionBtn = e.target.closest('[data-action]');
+            if (!actionBtn) return;
+            const action = actionBtn.getAttribute('data-action');
+
+            if (action === 'copy') {
+                const item = resources[idx];
+                handleCopyLink(item.link, item.encrypted);
+            } else if (action === 'edit') {
+                editResource(idx);
+            } else if (action === 'delete') {
+                deleteResource(idx);
+            }
+        });
+    }
+
+    function openAddResourceModal() {
+        document.getElementById('inputResourceName').value = '';
+        document.getElementById('inputResourceLink').value = '';
+        document.getElementById('inputResourceType').value = '百度';
+        document.getElementById('inputResourceEncrypted').checked = false;
+        document.getElementById('addResourceModal').classList.add('active');
+    }
+
+    function confirmAddResource() {
+        const name = document.getElementById('inputResourceName').value.trim();
+        const link = document.getElementById('inputResourceLink').value.trim();
+        const disk = document.getElementById('inputResourceType').value;
+        const encrypted = document.getElementById('inputResourceEncrypted').checked;
+
+        if (!name) {
+            showToast("资源名称不能为空");
+            return;
+        }
+        if (!link) {
+            showToast("资源链接不能为空");
+            return;
+        }
+
+        resources.unshift({
+            serial: "NEW",
+            name: name,
+            disk: disk,
+            link: link,
+            encrypted: encrypted
+        });
+
+        reindexSerials();
+        document.getElementById('addResourceModal').classList.remove('active');
+        renderCards();
+        showToast("新资源已添加（置顶显示）");
+    }
+
+    function setupImageUpload() {
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = 'image/*';
+        fileInput.style.display = 'none';
+        document.body.appendChild(fileInput);
+        const uploadBtn = document.getElementById('uploadImageBtn');
+        uploadBtn.addEventListener('click', function() { fileInput.click(); });
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                currentImageBase64 = ev.target.result;
+                const bannerImg = document.getElementById('bannerImg');
+                if (bannerImg) bannerImg.src = currentImageBase64;
+                showToast('头图已更新');
+            };
+            reader.readAsDataURL(file);
+            fileInput.value = '';
+        });
+    }
+
+    function setupQrUpload() {
+        const qrInput = document.createElement('input');
+        qrInput.type = 'file';
+        qrInput.accept = 'image/*';
+        qrInput.style.display = 'none';
+        document.body.appendChild(qrInput);
+        const uploadQr = document.getElementById('uploadQrBtn');
+        uploadQr.addEventListener('click', function() { qrInput.click(); });
+        qrInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                currentQrBase64 = ev.target.result;
+                const qrImg = document.getElementById('qrcodeImg');
+                if (qrImg) qrImg.src = currentQrBase64;
+                showToast('打赏二维码已更新');
+            };
+            reader.readAsDataURL(file);
+            qrInput.value = '';
+        });
+    }
+
+    function setupWechatCopy() {
+        document.getElementById('copyWechatBtn').addEventListener('click', async function() {
+            await copyToClipboard('ETM11107');
+            showToast('微信号 ETM11107 已复制');
+        });
+    }
+
+    function setupFeedbackWechatCopy() {
+        document.getElementById('feedbackCopyWechatBtn').addEventListener('click', async function() {
+            await copyToClipboard('ETM11107');
+            showToast('微信号 ETM11107 已复制');
+        });
+    }
+
+    function setupImageZoom() {
+        const modalDiv = document.createElement('div');
+        modalDiv.className = 'modal-unlock';
+        modalDiv.style.backgroundColor = 'rgba(5,5,20,0.95)';
+        modalDiv.style.zIndex = '1300';
+        const modalImgElem = document.createElement('img');
+        modalImgElem.style.maxWidth = '80%';
+        modalImgElem.style.maxHeight = '80%';
+        const closeSpan = document.createElement('span');
+        closeSpan.innerText = '✕';
+        closeSpan.style.position = 'absolute';
+        closeSpan.style.top = '30px';
+        closeSpan.style.right = '40px';
+        closeSpan.style.fontSize = '40px';
+        closeSpan.style.color = '#00FFFF';
+        closeSpan.style.cursor = 'pointer';
+        modalDiv.appendChild(closeSpan);
+        modalDiv.appendChild(modalImgElem);
+        document.body.appendChild(modalDiv);
+        const banner = document.getElementById('bannerImg');
+        const qrImgDom = document.getElementById('qrcodeImg');
+        const showModal = function(src) { modalImgElem.src = src; modalDiv.classList.add('active'); };
+        banner.addEventListener('click', function() { showModal(banner.src); });
+        qrImgDom.addEventListener('click', function() { showModal(qrImgDom.src); });
+        closeSpan.onclick = function() { modalDiv.classList.remove('active'); };
+        modalDiv.addEventListener('click', function(e) { if(e.target === modalDiv) modalDiv.classList.remove('active'); });
+    }
+
+    function saveCurrentContent() {
+        const resourcesToSave = JSON.parse(JSON.stringify(resources));
+        const bannerSrc = document.getElementById('bannerImg').src;
+        const qrSrc = document.getElementById('qrcodeImg').src;
+        try {
+            localStorage.setItem('anxiaomei_resources', JSON.stringify(resourcesToSave));
+            localStorage.setItem('anxiaomei_banner', bannerSrc);
+            localStorage.setItem('anxiaomei_qr', qrSrc);
+            showToast('当前编辑内容已保存到本地，下次打开将自动恢复');
+        } catch(e) {
+            showToast('保存失败，可能是存储空间不足', 2000);
+        }
+    }
+
+    function loadSavedContent() {
+        const savedResources = localStorage.getItem('anxiaomei_resources');
+        const savedBanner = localStorage.getItem('anxiaomei_banner');
+        const savedQr = localStorage.getItem('anxiaomei_qr');
+        let hasLoaded = false;
+        if (savedResources) {
+            try {
+                const parsed = JSON.parse(savedResources);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    resources = parsed;
+                    hasLoaded = true;
+                }
+            } catch(e) {}
+        }
+        if (savedBanner && savedBanner !== '') {
+            const bannerImg = document.getElementById('bannerImg');
+            bannerImg.src = savedBanner;
+            currentImageBase64 = savedBanner;
+            hasLoaded = true;
+        }
+        if (savedQr && savedQr !== '') {
+            const qrImg = document.getElementById('qrcodeImg');
+            qrImg.src = savedQr;
+            currentQrBase64 = savedQr;
+            hasLoaded = true;
+        }
+        reindexSerials();
+        renderCards();
+        if (hasLoaded) {
+            showToast('已恢复上次编辑的内容', 1800);
+        }
+    }
+
+    // ===== 生成分享版HTML =====
+    function generateFinalHtml() {
+        const finalResources = JSON.parse(JSON.stringify(resources));
+        const finalBanner = document.getElementById('bannerImg').src;
+        const finalQr = document.getElementById('qrcodeImg').src;
+        const shareEncSecret = "628342";
+
+        let shareHtml = '<!DOCTYPE html>\n';
+        shareHtml += '<html lang="zh-CN">\n';
+        shareHtml += '<head>\n';
+        shareHtml += '    <meta charset="UTF-8">\n';
+        shareHtml += '    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">\n';
+        shareHtml += '    <title>科技安小妹工具箱 · 分享版</title>\n';
+        shareHtml += '    <style>\n';
+        const styleElem = document.querySelector('style');
+        if (styleElem) {
+            shareHtml += styleElem.innerHTML + '\n';
+        }
+        shareHtml += '    </style>\n';
+        shareHtml += '</head>\n';
+        shareHtml += '<body>\n';
+
+        shareHtml += '<div class="grid-bg"></div>\n';
+        shareHtml += '<div class="glow-orb glow-orb-1"></div>\n';
+        shareHtml += '<div class="glow-orb glow-orb-2"></div>\n';
+        shareHtml += '<div class="glow-orb glow-orb-3"></div>\n';
+
+        shareHtml += '<div class="container">\n';
+
+        shareHtml += '    <div class="hero-image-panel">\n';
+        shareHtml += '        <div class="image-upload-area">\n';
+        shareHtml += '            <div class="title-side">\n';
+        shareHtml += '                <div class="tech-title">科技安小妹工具箱</div>\n';
+        shareHtml += '                <div class="tech-sub">AI 数字资源中枢 · 极简智控</div>\n';
+        shareHtml += '            </div>\n';
+        shareHtml += '            <div style="display:flex;gap:20px;align-items:center;">\n';
+        shareHtml += '                <div class="image-preview"><img id="bannerImg" src="' + finalBanner + '"></div>\n';
+        shareHtml += '                <button class="upload-btn" id="uploadImageBtn" disabled>更换头图（已锁定）</button>\n';
+        shareHtml += '            </div>\n';
+        shareHtml += '        </div>\n';
+        shareHtml += '    </div>\n';
+
+        shareHtml += '    <div class="info-panel">\n';
+        shareHtml += '        <p>本资源为互联网优质内容整理，<strong>仅用于学习交流，禁止商用！</strong></p>\n';
+        shareHtml += '        <p>所有资源均来源于网络，侵删。请在下载后24小时内删除。</p>\n';
+        shareHtml += '        <p>我们不生产资源，只做资源的搬运工。</p>\n';
+        shareHtml += '        <div class="wechat-row"><span>方式一：添加微信免费领取解锁码</span><span class="wechat-id">ETM11107</span><button class="copy-btn" id="copyWechatBtn">复制微信号</button></div>\n';
+        shareHtml += '        <div class="qrcode-area"><div class="qrcode-title">打赏获取解锁码 · 支持创作</div><div class="qrcode-preview"><img id="qrcodeImg" src="' + finalQr + '"><div class="qrcode-tip">随心意打赏小编获取解锁码</div><button class="upload-btn upload-qr-btn" id="uploadQrBtn" disabled>更换二维码（已锁定）</button></div></div>\n';
+        shareHtml += '    </div>\n';
+
+        shareHtml += '    <div class="resource-manager">\n';
+        shareHtml += '        <div class="section-title">资源条目 <span class="badge-note">分享版 · 解锁后可编辑</span></div>\n';
+        
+        shareHtml += '        <div class="unlock-bar" id="unlockBar">\n';
+        shareHtml += '            <span class="unlock-status" id="unlockStatus">🔒 未解锁 - 仅可查看和复制链接</span>\n';
+        shareHtml += '            <div class="unlock-input">\n';
+        shareHtml += '                <input type="password" id="unlockPwdInput" placeholder="输入解锁码解锁编辑" autocomplete="off">\n';
+        shareHtml += '                <button class="unlock-btn" id="unlockSubmitBtn">解锁编辑</button>\n';
+        shareHtml += '            </div>\n';
+        shareHtml += '        </div>\n';
+
+        shareHtml += '        <div class="resource-card-list" id="resourceCardList"></div>\n';
+        shareHtml += '        <button class="add-resource-btn" id="addResourceBtn" disabled>+ 添加新资源（需解锁）</button>\n';
+        shareHtml += '        <button class="generate-btn" id="shareGenHtmlBtn" disabled>生成分享 HTML（需解锁）</button>\n';
+        shareHtml += '    </div>\n';
+        shareHtml += '</div>\n';
+
+        shareHtml += '<div id="toastMsg" class="toast-msg"></div>\n';
+
+        shareHtml += '<div id="encryptCopyModal" class="modal-unlock">\n';
+        shareHtml += '    <div class="modal-card">\n';
+        shareHtml += '        <img id="modalDynamicQr" src="" alt="打赏二维码">\n';
+        shareHtml += '        <p style="color:#B0C4DE; margin:8px 0;">加密资源 · 输入解锁口令复制链接</p>\n';
+        shareHtml += '        <input type="password" id="encryptPwdInput" placeholder="请输入解锁码" autocomplete="off">\n';
+        shareHtml += '        <div><button id="confirmCopyBtn">确认复制</button><button id="closeModalBtn">取消</button></div>\n';
+        shareHtml += '    </div>\n';
+        shareHtml += '</div>\n';
+
+        shareHtml += '<div id="copyFeedbackOverlay" class="feedback-overlay">\n';
+        shareHtml += '    <div class="feedback-card">\n';
+        shareHtml += '        <div class="copied-badge">链接已复制</div>\n';
+        shareHtml += '        <img id="feedbackQrImg" src="" alt="打赏二维码">\n';
+        shareHtml += '        <div class="donate-text">随你心意打赏支持小编获取永久解锁码<br>微信 ETM11107</div>\n';
+        shareHtml += '        <button class="copy-wechat-btn" id="feedbackCopyWechatBtn">一键复制微信</button>\n';
+        shareHtml += '        <br>\n';
+        shareHtml += '        <button class="close-feedback-btn" id="closeFeedbackBtn">关闭</button>\n';
+        shareHtml += '    </div>\n';
+        shareHtml += '</div>\n';
+
+        shareHtml += '<div class="add-resource-modal" id="addResourceModal">\n';
+        shareHtml += '    <div class="add-resource-card">\n';
+        shareHtml += '        <span class="close-modal-x" id="closeAddModalX">✕</span>\n';
+        shareHtml += '        <h3>✨ 添加新资源</h3>\n';
+        shareHtml += '        <div class="form-group"><label>资源名称</label><div class="input-paste-wrapper"><input type="text" id="inputResourceName" placeholder="请输入资源名称" autocomplete="off"><button class="paste-btn" data-target="inputResourceName" title="粘贴">📋</button></div></div>\n';
+        shareHtml += '        <div class="form-group"><label>资源链接</label><div class="input-paste-wrapper"><input type="text" id="inputResourceLink" placeholder="请输入资源链接地址" autocomplete="off"><button class="paste-btn" data-target="inputResourceLink" title="粘贴">📋</button></div></div>\n';
+        shareHtml += '        <div class="form-group"><label>资源类目</label><select id="inputResourceType"><option value="百度">百度网盘</option><option value="夸克">夸克网盘</option><option value="迅雷">迅雷网盘</option><option value="阿里">阿里云盘</option><option value="网页">网页链接</option><option value="其他">其他</option></select></div>\n';
+        shareHtml += '        <div class="form-group"><label><input type="checkbox" id="inputResourceEncrypted" style="width:auto;margin-right:8px;vertical-align:middle;">链接已加密</label></div>\n';
+        shareHtml += '        <div class="form-actions"><button class="form-cancel-btn" id="cancelAddResource">取消</button><button class="form-confirm-btn" id="confirmAddResource">确认添加</button></div>\n';
+        shareHtml += '    </div>\n';
+        shareHtml += '</div>\n';
+
+        shareHtml += '<div class="add-resource-modal" id="editLinkModal">\n';
+        shareHtml += '    <div class="add-resource-card">\n';
+        shareHtml += '        <span class="close-modal-x" id="closeEditModalX">✕</span>\n';
+        shareHtml += '        <h3>✏️ 编辑资源</h3>\n';
+        shareHtml += '        <div class="form-group"><label>资源名称</label><div class="input-paste-wrapper"><input type="text" id="editResourceName" placeholder="资源名称" autocomplete="off"><button class="paste-btn" data-target="editResourceName" title="粘贴">📋</button></div></div>\n';
+        shareHtml += '        <div class="form-group"><label>资源链接</label><div class="input-paste-wrapper"><input type="text" id="editResourceLink" placeholder="资源链接地址" autocomplete="off"><button class="paste-btn" data-target="editResourceLink" title="粘贴">📋</button></div></div>\n';
+        shareHtml += '        <div class="form-group"><label>资源类目</label><select id="editResourceType"><option value="百度">百度网盘</option><option value="夸克">夸克网盘</option><option value="迅雷">迅雷网盘</option><option value="阿里">阿里云盘</option><option value="网页">网页链接</option><option value="其他">其他</option></select></div>\n';
+        shareHtml += '        <div class="form-group"><label><input type="checkbox" id="editResourceEncrypted" style="width:auto;margin-right:8px;vertical-align:middle;">链接已加密</label></div>\n';
+        shareHtml += '        <div class="form-actions"><button class="form-cancel-btn" id="cancelEditResource">取消</button><button class="form-confirm-btn" id="confirmEditResource">保存修改</button></div>\n';
+        shareHtml += '    </div>\n';
+        shareHtml += '</div>\n';
+
+        // ===== 分享版JS（优化：事件委托 + DocumentFragment） =====
+        shareHtml += '<script>\n';
+
+        shareHtml += 'var resources = ' + JSON.stringify(finalResources) + ';\n';
+        shareHtml += 'var currentQrBase64 = "' + finalQr.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '";\n';
+        shareHtml += 'var currentBannerBase64 = "' + finalBanner.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '";\n';
+        shareHtml += 'var pendingCopyLink = "";\n';
+        shareHtml += 'var isUnlocked = false;\n';
+        shareHtml += 'var currentEditIndex = -1;\n';
+        shareHtml += 'var toastTimer = null;\n';
+
+        shareHtml += 'function decryptSecret(e) {\n';
+        shareHtml += '    var t = "";\n';
+        shareHtml += '    for (var n = 0; n < e.length; n++) {\n';
+        shareHtml += '        var r = parseInt(e[n], 10);\n';
+        shareHtml += '        t += isNaN(r) ? e[n] : ((r - 1 + 10) % 10).toString();\n';
+        shareHtml += '    }\n';
+        shareHtml += '    return t;\n';
+        shareHtml += '}\n';
+        shareHtml += 'var SECRET = decryptSecret("' + shareEncSecret + '");\n';
+
+        shareHtml += 'function showToast(e, t) {\n';
+        shareHtml += '    var n = document.getElementById("toastMsg");\n';
+        shareHtml += '    if (toastTimer) clearTimeout(toastTimer);\n';
+        shareHtml += '    n.innerText = e;\n';
+        shareHtml += '    n.style.opacity = "1";\n';
+        shareHtml += '    toastTimer = setTimeout(function() { n.style.opacity = "0"; toastTimer = null; }, t || 2200);\n';
+        shareHtml += '}\n';
+
+        shareHtml += 'async function copyToClipboard(e) {\n';
+        shareHtml += '    try { await navigator.clipboard.writeText(e); }\n';
+        shareHtml += '    catch (t) {\n';
+        shareHtml += '        var n = document.createElement("textarea");\n';
+        shareHtml += '        n.value = e;\n';
+        shareHtml += '        n.style.cssText = "position:fixed;left:-9999px;top:-9999px";\n';
+        shareHtml += '        document.body.appendChild(n);\n';
+        shareHtml += '        n.select();\n';
+        shareHtml += '        document.execCommand("copy");\n';
+        shareHtml += '        document.body.removeChild(n);\n';
+        shareHtml += '    }\n';
+        shareHtml += '}\n';
+
+        // 粘贴按钮
+        shareHtml += 'function pasteFromClipboard(e) {\n';
+        shareHtml += '    var n = document.getElementById(e);\n';
+        shareHtml += '    if (!n) return;\n';
+        shareHtml += '    var x = document.getElementById("__pasteGhost");\n';
+        shareHtml += '    if (x) x.remove();\n';
+        shareHtml += '    var g = document.createElement("textarea");\n';
+        shareHtml += '    g.id = "__pasteGhost";\n';
+        shareHtml += '    g.style.cssText = "position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none;z-index:-1";\n';
+        shareHtml += '    document.body.appendChild(g);\n';
+        shareHtml += '    g.focus();\n';
+        shareHtml += '    var o = n.placeholder, bc = n.style.borderColor, bs = n.style.boxShadow;\n';
+        shareHtml += '    n.placeholder = "已激活，请直接 Ctrl+V 粘贴";\n';
+        shareHtml += '    n.style.borderColor = "#00FF88";\n';
+        shareHtml += '    n.style.boxShadow = "0 0 12px rgba(0,255,136,0.35)";\n';
+        shareHtml += '    function cln() { n.placeholder = o; n.style.borderColor = bc; n.style.boxShadow = bs; g.removeEventListener("paste",a); g.removeEventListener("blur",b); g.removeEventListener("keydown",c); if (g.parentNode) g.remove(); }\n';
+        shareHtml += '    function a(v) { v.preventDefault(); var t = ""; var d = v.clipboardData || window.clipboardData; if (d) t = d.getData("text"); if (!t || t.trim() === "") { cln(); showToast("剪贴板为空"); return; } n.value = t; n.focus(); cln(); showToast("已粘贴"); }\n';
+        shareHtml += '    function b() { setTimeout(function() { if (document.activeElement !== g) cln(); }, 150); }\n';
+        shareHtml += '    function c(v) { if (v.key === "Escape") { v.preventDefault(); cln(); } }\n';
+        shareHtml += '    g.addEventListener("paste",a); g.addEventListener("blur",b); g.addEventListener("keydown",c);\n';
+        shareHtml += '    showToast("请在输入框中按 Ctrl+V 粘贴");\n';
+        shareHtml += '}\n';
+        shareHtml += 'function initPasteButtons() {\n';
+        shareHtml += '    var e = document.querySelectorAll(".paste-btn");\n';
+        shareHtml += '    for (var i = 0; i < e.length; i++) {\n';
+        shareHtml += '        e[i].removeEventListener("click", pasteBtnHandler);\n';
+        shareHtml += '        e[i].addEventListener("click", pasteBtnHandler);\n';
+        shareHtml += '    }\n';
+        shareHtml += '}\n';
+        shareHtml += 'function pasteBtnHandler(e) {\n';
+        shareHtml += '    var t = e.currentTarget.getAttribute("data-target");\n';
+        shareHtml += '    if (t) { pasteFromClipboard(t); }\n';
+        shareHtml += '}\n';
+
+        // reindexSerials
+        shareHtml += 'function reindexSerials() {\n';
+        shareHtml += '    var e = resources.length;\n';
+        shareHtml += '    for (var n = 0; n < e; n++) {\n';
+        shareHtml += '        resources[n].serial = (e - n).toString().padStart(3, "0");\n';
+        shareHtml += '    }\n';
+        shareHtml += '}\n';
+
+        // renderCards（DocumentFragment + 事件委托优化）
+        shareHtml += 'function renderCards() {\n';
+        shareHtml += '    var e = document.getElementById("resourceCardList");\n';
+        shareHtml += '    if (!e) return;\n';
+        shareHtml += '    e.innerHTML = "";\n';
+        shareHtml += '    if (resources.length === 0) {\n';
+        shareHtml += '        e.innerHTML = \'<div style="text-align:center;padding:40px;color:#8899AA;">暂无资源</div>\';\n';
+        shareHtml += '        return;\n';
+        shareHtml += '    }\n';
+        shareHtml += '    var f = document.createDocumentFragment();\n';
+        shareHtml += '    for (var n = 0; n < resources.length; n++) {\n';
+        shareHtml += '        var t = resources[n];\n';
+        shareHtml += '        var r = document.createElement("div");\n';
+        shareHtml += '        r.className = "resource-card";\n';
+        shareHtml += '        r.setAttribute("data-index", n);\n';
+        shareHtml += '        var a = document.createElement("div");\n';
+        shareHtml += '        a.className = "card-serial";\n';
+        shareHtml += '        a.textContent = t.serial;\n';
+        shareHtml += '        var o = document.createElement("div");\n';
+        shareHtml += '        o.className = "card-content";\n';
+        shareHtml += '        var s = document.createElement("div");\n';
+        shareHtml += '        s.style.cssText = "display:flex;align-items:center;gap:12px;flex-wrap:wrap";\n';
+        shareHtml += '        var c = document.createElement("span");\n';
+        shareHtml += '        c.className = "card-name";\n';
+        shareHtml += '        c.textContent = t.name;\n';
+        shareHtml += '        var i = document.createElement("span");\n';
+        shareHtml += '        i.className = "card-disk";\n';
+        shareHtml += '        i.textContent = t.disk;\n';
+        shareHtml += '        s.appendChild(c);\n';
+        shareHtml += '        s.appendChild(i);\n';
+        shareHtml += '        if (t.encrypted) {\n';
+        shareHtml += '            var d = document.createElement("span");\n';
+        shareHtml += '            d.style.cssText = "font-size:0.7rem;color:#FF69B4;background:rgba(255,105,180,0.1);padding:3px 10px;border-radius:40px;border:1px solid rgba(255,105,180,0.3)";\n';
+        shareHtml += '            d.textContent = "链接已加密";\n';
+        shareHtml += '            s.appendChild(d);\n';
+        shareHtml += '        }\n';
+        shareHtml += '        o.appendChild(s);\n';
+        shareHtml += '        var l = document.createElement("div");\n';
+        shareHtml += '        l.className = "card-actions";\n';
+        shareHtml += '        if (isUnlocked) {\n';
+        shareHtml += '            var u = document.createElement("button");\n';
+        shareHtml += '            u.className = "card-edit-btn";\n';
+        shareHtml += '            u.setAttribute("data-action", "edit");\n';
+        shareHtml += '            u.textContent = "修改";\n';
+        shareHtml += '            l.appendChild(u);\n';
+        shareHtml += '        }\n';
+        shareHtml += '        var m = document.createElement("button");\n';
+        shareHtml += '        m.className = "card-copy-btn";\n';
+        shareHtml += '        m.setAttribute("data-action", "copy");\n';
+        shareHtml += '        m.textContent = "复制链接";\n';
+        shareHtml += '        l.appendChild(m);\n';
+        shareHtml += '        if (isUnlocked) {\n';
+        shareHtml += '            var p = document.createElement("button");\n';
+        shareHtml += '            p.className = "card-delete-btn";\n';
+        shareHtml += '            p.setAttribute("data-action", "delete");\n';
+        shareHtml += '            p.textContent = "删除";\n';
+        shareHtml += '            l.appendChild(p);\n';
+        shareHtml += '        }\n';
+        shareHtml += '        r.appendChild(a);\n';
+        shareHtml += '        r.appendChild(o);\n';
+        shareHtml += '        r.appendChild(l);\n';
+        shareHtml += '        f.appendChild(r);\n';
+        shareHtml += '    }\n';
+        shareHtml += '    e.appendChild(f);\n';
+        shareHtml += '}\n';
+
+        // 事件委托：卡片按钮
+        shareHtml += 'function setupCardDelegation() {\n';
+        shareHtml += '    document.getElementById("resourceCardList").addEventListener("click", function(evt) {\n';
+        shareHtml += '        var card = evt.target.closest(".resource-card");\n';
+        shareHtml += '        if (!card) return;\n';
+        shareHtml += '        var idx = parseInt(card.getAttribute("data-index"));\n';
+        shareHtml += '        if (isNaN(idx) || idx < 0 || idx >= resources.length) return;\n';
+        shareHtml += '        var btn = evt.target.closest("[data-action]");\n';
+        shareHtml += '        if (!btn) return;\n';
+        shareHtml += '        var act = btn.getAttribute("data-action");\n';
+        shareHtml += '        if (act === "copy") { handleCopyLink(resources[idx].link, resources[idx].encrypted); }\n';
+        shareHtml += '        else if (act === "edit") { editResource(idx); }\n';
+        shareHtml += '        else if (act === "delete") { deleteResource(idx); }\n';
+        shareHtml += '    });\n';
+        shareHtml += '}\n';
+
+        shareHtml += 'function handleCopyLink(e, t) {\n';
+        shareHtml += '    if (!t) {\n';
+        shareHtml += '        copyToClipboard(e).then(function() {\n';
+        shareHtml += '            var n = document.getElementById("qrcodeImg");\n';
+        shareHtml += '            document.getElementById("feedbackQrImg").src = n ? n.src : currentQrBase64;\n';
+        shareHtml += '            document.getElementById("copyFeedbackOverlay").classList.add("active");\n';
+        shareHtml += '        });\n';
+        shareHtml += '    } else {\n';
+        shareHtml += '        pendingCopyLink = e;\n';
+        shareHtml += '        var n = document.getElementById("qrcodeImg");\n';
+        shareHtml += '        document.getElementById("modalDynamicQr").src = n ? n.src : currentQrBase64;\n';
+        shareHtml += '        document.getElementById("encryptPwdInput").value = "";\n';
+        shareHtml += '        document.getElementById("encryptCopyModal").classList.add("active");\n';
+        shareHtml += '    }\n';
+        shareHtml += '}\n';
+
+        shareHtml += 'function confirmEncryptedCopy() {\n';
+        shareHtml += '    var e = document.getElementById("encryptPwdInput").value.trim();\n';
+        shareHtml += '    if (e === SECRET && pendingCopyLink) {\n';
+        shareHtml += '        copyToClipboard(pendingCopyLink);\n';
+        shareHtml += '        showToast("加密链接已复制");\n';
+        shareHtml += '        document.getElementById("encryptCopyModal").classList.remove("active");\n';
+        shareHtml += '        pendingCopyLink = "";\n';
+        shareHtml += '    } else if (e !== SECRET) {\n';
+        shareHtml += '        showToast("口令错误");\n';
+        shareHtml += '    }\n';
+        shareHtml += '}\n';
+
+        shareHtml += 'function closeEncryptModal() { document.getElementById("encryptCopyModal").classList.remove("active"); pendingCopyLink = ""; }\n';
+        shareHtml += 'function closeCopyFeedback() { document.getElementById("copyFeedbackOverlay").classList.remove("active"); }\n';
+        shareHtml += 'function deleteResource(e) { resources.splice(e, 1); reindexSerials(); renderCards(); showToast("已移除资源"); }\n';
+
+        shareHtml += 'function editResource(e) {\n';
+        shareHtml += '    currentEditIndex = e;\n';
+        shareHtml += '    var t = resources[e];\n';
+        shareHtml += '    document.getElementById("editResourceName").value = t.name;\n';
+        shareHtml += '    document.getElementById("editResourceLink").value = t.link;\n';
+        shareHtml += '    document.getElementById("editResourceType").value = t.disk;\n';
+        shareHtml += '    document.getElementById("editResourceEncrypted").checked = t.encrypted;\n';
+        shareHtml += '    document.getElementById("editLinkModal").classList.add("active");\n';
+        shareHtml += '}\n';
+
+        shareHtml += 'function confirmEditResource() {\n';
+        shareHtml += '    if (currentEditIndex < 0) return;\n';
+        shareHtml += '    var e = document.getElementById("editResourceName").value.trim();\n';
+        shareHtml += '    var t = document.getElementById("editResourceLink").value.trim();\n';
+        shareHtml += '    var n = document.getElementById("editResourceType").value;\n';
+        shareHtml += '    var r = document.getElementById("editResourceEncrypted").checked;\n';
+        shareHtml += '    if (!e) { showToast("资源名称不能为空"); return; }\n';
+        shareHtml += '    if (!t) { showToast("资源链接不能为空"); return; }\n';
+        shareHtml += '    resources[currentEditIndex].name = e;\n';
+        shareHtml += '    resources[currentEditIndex].link = t;\n';
+        shareHtml += '    resources[currentEditIndex].disk = n;\n';
+        shareHtml += '    resources[currentEditIndex].encrypted = r;\n';
+        shareHtml += '    currentEditIndex = -1;\n';
+        shareHtml += '    document.getElementById("editLinkModal").classList.remove("active");\n';
+        shareHtml += '    renderCards();\n';
+        shareHtml += '    showToast("资源已更新");\n';
+        shareHtml += '}\n';
+
+        shareHtml += 'function openAddResourceModal() {\n';
+        shareHtml += '    document.getElementById("inputResourceName").value = "";\n';
+        shareHtml += '    document.getElementById("inputResourceLink").value = "";\n';
+        shareHtml += '    document.getElementById("inputResourceType").value = "百度";\n';
+        shareHtml += '    document.getElementById("inputResourceEncrypted").checked = false;\n';
+        shareHtml += '    document.getElementById("addResourceModal").classList.add("active");\n';
+        shareHtml += '}\n';
+
+        shareHtml += 'function confirmAddResource() {\n';
+        shareHtml += '    var e = document.getElementById("inputResourceName").value.trim();\n';
+        shareHtml += '    var t = document.getElementById("inputResourceLink").value.trim();\n';
+        shareHtml += '    var n = document.getElementById("inputResourceType").value;\n';
+        shareHtml += '    var r = document.getElementById("inputResourceEncrypted").checked;\n';
+        shareHtml += '    if (!e) { showToast("资源名称不能为空"); return; }\n';
+        shareHtml += '    if (!t) { showToast("资源链接不能为空"); return; }\n';
+        shareHtml += '    resources.unshift({ serial: "NEW", name: e, disk: n, link: t, encrypted: r });\n';
+        shareHtml += '    reindexSerials();\n';
+        shareHtml += '    document.getElementById("addResourceModal").classList.remove("active");\n';
+        shareHtml += '    renderCards();\n';
+        shareHtml += '    showToast("新资源已添加");\n';
+        shareHtml += '}\n';
+
+        shareHtml += 'function unlockEdit() {\n';
+        shareHtml += '    var e = document.getElementById("unlockPwdInput").value.trim();\n';
+        shareHtml += '    if (e === SECRET) {\n';
+        shareHtml += '        isUnlocked = true;\n';
+        shareHtml += '        document.getElementById("unlockStatus").innerText = "✅ 已解锁 - 可编辑资源";\n';
+        shareHtml += '        document.getElementById("unlockStatus").className = "unlock-status unlocked";\n';
+        shareHtml += '        document.getElementById("addResourceBtn").disabled = false;\n';
+        shareHtml += '        document.getElementById("shareGenHtmlBtn").disabled = false;\n';
+        shareHtml += '        document.getElementById("unlockSubmitBtn").disabled = true;\n';
+        shareHtml += '        document.getElementById("unlockPwdInput").disabled = true;\n';
+        shareHtml += '        renderCards();\n';
+        shareHtml += '        showToast("解锁成功！现在可以编辑资源和生成分享文件");\n';
+        shareHtml += '    } else {\n';
+        shareHtml += '        showToast("解锁码错误，请打赏获取");\n';
+        shareHtml += '    }\n';
+        shareHtml += '}\n';
+
+        shareHtml += 'function generateShareHtml() {\n';
+        shareHtml += '    var html = document.documentElement.outerHTML;\n';
+        shareHtml += '    var marker = "var resources = ";\n';
+        shareHtml += '    var idx = html.indexOf(marker);\n';
+        shareHtml += '    if (idx >= 0) {\n';
+        shareHtml += '        var start = idx + marker.length;\n';
+        shareHtml += '        var depth = 0;\n';
+        shareHtml += '        var end = start;\n';
+        shareHtml += '        for (var i = start; i < html.length; i++) {\n';
+        shareHtml += '            if (html[i] === "[") depth++;\n';
+        shareHtml += '            else if (html[i] === "]") {\n';
+        shareHtml += '                depth--;\n';
+        shareHtml += '                if (depth === 0) { end = i + 1; break; }\n';
+        shareHtml += '            }\n';
+        shareHtml += '        }\n';
+        shareHtml += '        var newResources = JSON.stringify(resources);\n';
+        shareHtml += '        html = html.substring(0, start) + newResources + html.substring(end);\n';
+        shareHtml += '    }\n';
+        shareHtml += '    var blob = new Blob([html], { type: "text/html" });\n';
+        shareHtml += '    var url = URL.createObjectURL(blob);\n';
+        shareHtml += '    var a = document.createElement("a");\n';
+        shareHtml += '    a.href = url;\n';
+        shareHtml += '    a.download = "科技安小妹_分享版_" + new Date().toISOString().slice(0,10) + ".html";\n';
+        shareHtml += '    a.click();\n';
+        shareHtml += '    URL.revokeObjectURL(url);\n';
+        shareHtml += '    showToast("已生成下一级分享版HTML文件");\n';
+        shareHtml += '}\n';
+
+        // 事件绑定
+        shareHtml += 'window.onload = function() {\n';
+        shareHtml += '    reindexSerials();\n';
+        shareHtml += '    renderCards();\n';
+        shareHtml += '    setupCardDelegation();\n';
+        shareHtml += '    initPasteButtons();\n';
+        shareHtml += '    document.getElementById("copyWechatBtn").addEventListener("click", function() {\n';
+        shareHtml += '        copyToClipboard("ETM11107");\n';
+        shareHtml += '        showToast("微信号已复制");\n';
+        shareHtml += '    });\n';
+        shareHtml += '    document.getElementById("feedbackCopyWechatBtn").addEventListener("click", function() {\n';
+        shareHtml += '        copyToClipboard("ETM11107");\n';
+        shareHtml += '        showToast("微信号已复制");\n';
+        shareHtml += '    });\n';
+        shareHtml += '    document.getElementById("confirmCopyBtn").addEventListener("click", confirmEncryptedCopy);\n';
+        shareHtml += '    document.getElementById("closeModalBtn").addEventListener("click", closeEncryptModal);\n';
+        shareHtml += '    document.getElementById("closeFeedbackBtn").addEventListener("click", closeCopyFeedback);\n';
+        shareHtml += '    document.getElementById("unlockSubmitBtn").addEventListener("click", unlockEdit);\n';
+        shareHtml += '    document.getElementById("shareGenHtmlBtn").addEventListener("click", generateShareHtml);\n';
+        shareHtml += '    document.getElementById("addResourceBtn").addEventListener("click", openAddResourceModal);\n';
+        shareHtml += '    document.getElementById("confirmAddResource").addEventListener("click", confirmAddResource);\n';
+        shareHtml += '    document.getElementById("cancelAddResource").addEventListener("click", function() { document.getElementById("addResourceModal").classList.remove("active"); });\n';
+        shareHtml += '    document.getElementById("confirmEditResource").addEventListener("click", confirmEditResource);\n';
+        shareHtml += '    document.getElementById("cancelEditResource").addEventListener("click", function() { currentEditIndex = -1; document.getElementById("editLinkModal").classList.remove("active"); });\n';
+        shareHtml += '    document.getElementById("closeAddModalX").addEventListener("click", function() { document.getElementById("addResourceModal").classList.remove("active"); });\n';
+        shareHtml += '    document.getElementById("closeEditModalX").addEventListener("click", function() { currentEditIndex = -1; document.getElementById("editLinkModal").classList.remove("active"); });\n';
+        // 模态框背景点击关闭（精确绑定，不用全局监听）
+        shareHtml += '    document.getElementById("encryptCopyModal").addEventListener("click", function(evt) { if (evt.target === this) closeEncryptModal(); });\n';
+        shareHtml += '    document.getElementById("copyFeedbackOverlay").addEventListener("click", function(evt) { if (evt.target === this) closeCopyFeedback(); });\n';
+        shareHtml += '    document.getElementById("addResourceModal").addEventListener("click", function(evt) { if (evt.target === this) this.classList.remove("active"); });\n';
+        shareHtml += '    document.getElementById("editLinkModal").addEventListener("click", function(evt) { if (evt.target === this) { currentEditIndex = -1; this.classList.remove("active"); } });\n';
+        shareHtml += '};\n';
+
+        shareHtml += '<\/script>\n';
+        shareHtml += '</body>\n';
+        shareHtml += '</html>';
+
+        const blob = new Blob([shareHtml], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = '科技安小妹_分享版_' + new Date().toISOString().slice(0,10) + '.html';
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast("已生成分享版HTML文件（含解锁编辑功能）");
+    }
+
+    // ===== 模态框背景点击关闭（精确绑定，不走全局监听） =====
+    function setupModalBackdropHandlers() {
+        document.getElementById('encryptCopyModal').addEventListener('click', function(evt) {
+            if (evt.target === this) closeEncryptModal();
+        });
+        document.getElementById('copyFeedbackOverlay').addEventListener('click', function(evt) {
+            if (evt.target === this) closeCopyFeedback();
+        });
+        document.getElementById('addResourceModal').addEventListener('click', function(evt) {
+            if (evt.target === this) this.classList.remove('active');
+        });
+        document.getElementById('editLinkModal').addEventListener('click', function(evt) {
+            if (evt.target === this) { currentEditIndex = -1; this.classList.remove('active'); }
+        });
+    }
+
+    function init() {
+        loadSavedContent();
+        setupImageUpload();
+        setupQrUpload();
+        setupWechatCopy();
+        setupFeedbackWechatCopy();
+        setupImageZoom();
+        setupCardListDelegation();
+        setupModalBackdropHandlers();
+        initPasteButtons();
+
+        document.getElementById('addResourceBtn').addEventListener('click', openAddResourceModal);
+
+        document.getElementById('confirmAddResource').addEventListener('click', confirmAddResource);
+        document.getElementById('cancelAddResource').addEventListener('click', function() {
+            document.getElementById('addResourceModal').classList.remove('active');
+        });
+        document.getElementById('closeAddModalX').addEventListener('click', function() {
+            document.getElementById('addResourceModal').classList.remove('active');
+        });
+
+        document.getElementById('confirmEditResource').addEventListener('click', confirmEditResource);
+        document.getElementById('cancelEditResource').addEventListener('click', function() {
+            currentEditIndex = -1;
+            document.getElementById('editLinkModal').classList.remove('active');
+        });
+        document.getElementById('closeEditModalX').addEventListener('click', function() {
+            currentEditIndex = -1;
+            document.getElementById('editLinkModal').classList.remove('active');
+        });
+
+        document.getElementById('generateHtmlBtn').addEventListener('click', generateFinalHtml);
+        document.getElementById('saveContentBtn').addEventListener('click', saveCurrentContent);
+
+        document.getElementById('confirmCopyBtn').addEventListener('click', confirmEncryptedCopy);
+        document.getElementById('closeModalBtn').addEventListener('click', closeEncryptModal);
+
+        document.getElementById('closeFeedbackBtn').addEventListener('click', closeCopyFeedback);
+    }
+    init();
+</script>
+</body>
+</html>
